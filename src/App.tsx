@@ -147,6 +147,15 @@ function App() {
   const [connectionLabel, setConnectionLabel] = useState("Connecting...");
   const [connectionState, setConnectionState] = useState("idle");
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (text: string, feedbackKey: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn việc mở modal
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(feedbackKey);
+      setTimeout(() => setCopiedId(null), 1500);
+    });
+  };
 
   const resetFilters = () => {
     setStatusFilter("all");
@@ -281,8 +290,16 @@ function App() {
     [allDevices, statusFilter, categoryFilter, machineFilter, query]
   );
 
+  const formatMacAddress = (val: unknown) => {
+    const str = String(val);
+    if (str.length === 12 && /^[0-9A-Fa-f]{12}$/.test(str)) {
+      return str.toUpperCase().match(/.{1,2}/g)?.join(":") || str;
+    }
+    return formatValue(val);
+  };
+
   const payloadKeys = useMemo(() => {
-    const excluded = new Set(["device_id", "status", "client_id", "ms", "system", "type"]);
+    const excluded = new Set(["device_id", "status", "client_id", "ms", "system", "type", "ip"]);
     const keys = new Set<string>();
     filteredDevices.forEach((device) => {
       Object.keys(device.rawData).forEach((key) => {
@@ -310,8 +327,6 @@ function App() {
     [filteredDevices]
   );
 
-  const selectedDevice = selectedDeviceId ? devices[selectedDeviceId] ?? null : null;
-  
   return (
     <div className="app">
       <header className="topbar">
@@ -422,12 +437,13 @@ function App() {
           <button className="btn ghost compact-reset" type="button" onClick={resetFilters}>
             Reset
           </button>
-        </div>
-        <div className="toolbar-meta compact-meta">
+           <div className="toolbar-meta compact-meta">
           {allDevices.length === 0
             ? "Waiting for data..."
             : `Showing ${filteredDevices.length} of ${allDevices.length} devices`}
         </div>
+        </div>
+       
       </section>
 
       <div className="table-wrap" id="grid">
@@ -450,11 +466,17 @@ function App() {
           <table className="device-table">
             <thead>
               <tr>
-                <th>Device ID</th>
-                <th>Status</th>
-                <th>Category</th>
-                <th>Machine Type</th>
-                {payloadKeys.length > 0 ? payloadKeys.map((key) => <th key={key}>{key}</th>) : <th>Payload</th>}
+                <th style={{textAlign:'center'}}>Device ID</th>
+                <th style={{textAlign:'center'}}>Status</th>
+                <th style={{textAlign:'center'}}>Category</th>
+                <th style={{textAlign:'center'}}>Machine Type</th>
+                {payloadKeys.length > 0 ? (
+                  payloadKeys.map((key) => (
+                    <th key={key}>{key.toLowerCase() === "node_id" ? "Node ID / MAC" : key}</th>
+                  ))
+                ) : (
+                  <th>Payload</th>
+                )}
                 <th>Updated</th>
               </tr>
             </thead>
@@ -465,22 +487,45 @@ function App() {
                   className="device-row"
                   onClick={() => setSelectedDeviceId(device.deviceId)}
                 >
-                  <td className="device-id">{device.deviceId}</td>
-                  <td>
+                  <td 
+                    className="device-id" 
+                    style={{textAlign:'center', position: 'relative'}}
+                    onClick={(e) => handleCopy(device.deviceId, device.deviceId, e)}
+                    title="Click to copy ID"
+                  >
+                    {device.deviceId}
+                    {copiedId === device.deviceId && <span className="copy-feedback">Copied!</span>}
+                  </td>
+                  <td style={{textAlign:'center'}}>
                     <span className={`status-badge ${device.status === "online" ? "status-online" : device.status === "offline" ? "status-offline" : "status-unknown"}`}>
-                      <span className="bdot" />
+                      <span  className="bdot" />
                       {statusLabel(device.status)}
                     </span>
                   </td>
-                  <td>
-                    <span className={categoryChipClass(device.category)}>{device.category}</span>
+                  <td style={{textAlign:'center'}}>
+                    <span style={{textAlign:'center'}} className={categoryChipClass(device.category)}>{device.category}</span>
                   </td>
-                  <td>
-                    <span className="meta-chip mtype">{device.machineType.replace(/_/g, " ")}</span>
+                  <td style={{textAlign:'center'}}>
+                    <span style={{textAlign:'center'}} className="meta-chip mtype">{device.machineType.replace(/_/g, " ")}</span>
                   </td>
-                  {payloadKeys.length > 0 ? payloadKeys.map((key) => (
-                    <td key={key}>{formatValue(device.rawData[key])}</td>
-                  )) : (
+                  {payloadKeys.length > 0 ? (
+                    payloadKeys.map((key) => {
+                      const isNodeId = key.toLowerCase() === "node_id";
+                      const val = device.rawData[key];
+                      const feedbackKey = `${device.deviceId}-${key}`;
+                      return (
+                        <td 
+                          key={key} 
+                          className={isNodeId ? "device-id" : ""} 
+                          style={isNodeId ? { position: 'relative', textAlign: 'center' } : {}}
+                          onClick={isNodeId ? (e) => handleCopy(formatMacAddress(val), feedbackKey, e) : undefined}
+                        >
+                          {isNodeId ? formatMacAddress(val) : formatValue(val)}
+                          {isNodeId && copiedId === feedbackKey && <span className="copy-feedback">Copied!</span>}
+                        </td>
+                      );
+                    })
+                  ) : (
                     <td>-</td>
                   )}
                   <td>{formatTime(device.updatedAt)}</td>
@@ -491,64 +536,7 @@ function App() {
         )}
       </div>
 
-      {selectedDevice && (
-        <div id="modal-overlay" className="modal-overlay open" onClick={() => setSelectedDeviceId(null)}>
-          <div className="modal-box" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <div className="modal-title">{selectedDevice.deviceId}</div>
-                <div className="modal-chips">
-                  <span className={categoryChipClass(selectedDevice.category)}>{selectedDevice.category}</span>
-                  <span className="meta-chip mtype">{selectedDevice.machineType.replace(/_/g, " ")}</span>
-                  <span
-                    className="meta-chip"
-                    style={{
-                      color: selectedDevice.status === "online" ? "var(--online)" : selectedDevice.status === "offline" ? "var(--offline)" : "var(--neutral)",
-                      background: selectedDevice.status === "online" ? "#dcfce7" : selectedDevice.status === "offline" ? "#fee2e2" : "#f3f4f6",
-                      border: selectedDevice.status === "online" ? "1px solid #bbf7d0" : selectedDevice.status === "offline" ? "1px solid #fecaca" : "1px solid #e5e7eb",
-                      fontFamily: "var(--mono)",
-                      fontSize: "10px",
-                      padding: "3px 8px",
-                      borderRadius: "6px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                  >
-                    {statusLabel(selectedDevice.status)}
-                  </span>
-                </div>
-              </div>
-              <button className="modal-close" type="button" onClick={() => setSelectedDeviceId(null)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="modal-section-title">FM History</div>
-              <div className="modal-history">
-                {selectedDevice.history.length > 0 ? (
-                  <div className="modal-history-table">
-                    <div className="modal-history-row modal-history-header">
-                      <span>FM</span>
-                      <span>Date</span>
-                    </div>
-                    {selectedDevice.history.map((entry, index) => (
-                      <div className="modal-history-row" key={`${entry.fm}-${index}`}>
-                        <span>{entry.fm}</span>
-                        <span>{new Date(entry.date).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="modal-empty">No FM history available.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }

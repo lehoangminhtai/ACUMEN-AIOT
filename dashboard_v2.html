@@ -1,0 +1,1002 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device Monitoring</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #2563eb;
+  --online: #16a34a;
+  --offline: #dc2626;
+  --neutral: #6b7280;
+  --background: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f4fb;
+  --surface-3: #eef2ff;
+  --border: #e5e7eb;
+  --border-2: #d8dde6;
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #6b7280;
+  --muted-2: #94a3b8;
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 6px 16px rgba(15, 23, 42, 0.08);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
+  --mono: "IBM Plex Mono", monospace;
+  --display: "Space Grotesk", sans-serif;
+  --body: "Plus Jakarta Sans", sans-serif;
+}
+html, body {
+  height: 100%;
+  background: radial-gradient(1200px 500px at 10% -10%, #e8efff 0%, rgba(232,239,255,0) 60%),
+              radial-gradient(900px 400px at 90% 0%, #f3f6ff 0%, rgba(243,246,255,0) 55%),
+              var(--background);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 14px;
+}
+body { overflow-x: hidden; }
+.app { min-height: 100%; }
+
+/* Top Bar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.brand-badge {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37,99,235,0.25);
+}
+.brand-badge svg { width: 18px; height: 18px; }
+.brand-text h1 {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.brand-text p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 18px;
+}
+.nav a {
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.nav a.active {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stat-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.stat-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+.mqtt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.mqtt-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted-2);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.mqtt-dot.connected { background: var(--online); box-shadow: 0 0 0 4px rgba(22,163,74,0.15); }
+.mqtt-dot.error { background: var(--offline); box-shadow: 0 0 0 4px rgba(220,38,38,0.15); }
+
+/* Summary */
+.summary {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  padding: 24px 28px 6px;
+}
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-soft);
+}
+.summary-card.large {
+  background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 50%, #fff 100%);
+}
+.summary-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.summary-copy {
+  margin: 10px 0 16px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn.primary { background: var(--primary); color: #fff; box-shadow: 0 10px 18px rgba(37,99,235,0.24); }
+.btn.ghost { background: #fff; color: var(--text); border: 1px solid var(--border); }
+.summary-metric {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.metric-value {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 700;
+}
+.metric-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.metric-sub .up { color: var(--online); }
+.metric-sub .down { color: var(--offline); }
+
+/* Filters */
+.filters {
+  padding: 8px 28px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  min-width: 90px;
+}
+.pill-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pill {
+  border: 1px solid transparent;
+  background: #fff;
+  color: var(--muted);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pill:hover { border-color: var(--border-2); color: var(--text); }
+.pill.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.pill.active.pill-online { background: var(--online); border-color: var(--online); }
+.pill.active.pill-offline { background: var(--offline); border-color: var(--offline); }
+.pill .pill-count {
+  background: rgba(0,0,0,0.08);
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.pill.active .pill-count { background: rgba(255,255,255,0.2); }
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Toolbar */
+.toolbar {
+  padding: 14px 28px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.search-wrap { position: relative; min-width: 220px; flex: 1; max-width: 320px; }
+.search-wrap svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 14px; color: var(--muted-2);
+}
+#search-input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px 8px 34px;
+  font-size: 12px;
+  font-family: var(--body);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.toolbar-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* Grid */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+  padding: 16px 28px 40px;
+}
+
+/* Card */
+.device-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.device-card.is-new { animation: card-in 0.25s ease both; }
+@keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.device-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--border-2); }
+.device-card.status-online { border-left: 4px solid var(--online); box-shadow: 0 0 0 1px rgba(22,163,74,0.08), var(--shadow-soft); }
+.device-card.status-offline { border-left: 4px solid var(--offline); box-shadow: 0 0 0 1px rgba(220,38,38,0.08), var(--shadow-soft); }
+.device-card.status-unknown { border-left: 4px solid var(--border-2); }
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.device-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-all;
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status-badge .bdot { width: 6px; height: 6px; border-radius: 50%; }
+.status-online .status-badge { background: #dcfce7; color: var(--online); border: 1px solid #bbf7d0; }
+.status-online .status-badge .bdot { background: var(--online); }
+.status-offline .status-badge { background: #fee2e2; color: var(--offline); border: 1px solid #fecaca; }
+.status-offline .status-badge .bdot { background: var(--offline); }
+.status-unknown .status-badge { background: #f3f4f6; color: var(--neutral); border: 1px solid #e5e7eb; }
+.status-unknown .status-badge .bdot { background: var(--neutral); }
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.meta-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.meta-chip.category-facility { color: #7c3aed; background: #f5f3ff; border: 1px solid #ddd6fe; }
+.meta-chip.category-production { color: #b45309; background: #fffbeb; border: 1px solid #fde68a; }
+.meta-chip.category-unknown { color: var(--neutral); background: #f3f4f6; border: 1px solid #e5e7eb; }
+.meta-chip.mtype { color: var(--primary); background: #eff6ff; border: 1px solid rgba(37,99,235,0.15); }
+.data-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.data-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  max-width: 45%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.data-val {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-2);
+  font-weight: 600;
+  max-width: 55%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+.data-val.highlight { color: var(--primary); }
+.data-val.val-null { color: var(--muted-2); font-style: italic; }
+.data-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted-2);
+  cursor: pointer;
+}
+.data-more:hover { color: var(--primary); }
+.card-footer {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted-2);
+}
+
+/* Empty */
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 80px 20px;
+  text-align: center;
+}
+.empty-icon {
+  width: 60px; height: 60px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.empty-state h3 { font-family: var(--display); font-size: 18px; }
+.empty-state p { color: var(--muted); max-width: 320px; line-height: 1.6; }
+
+/* Modal */
+#modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15,23,42,0.3);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#modal-overlay.open { display: flex; }
+#modal-box {
+  width: 100%;
+  max-width: 520px;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 80px rgba(15,23,42,0.2);
+  overflow: hidden;
+  animation: modal-in 0.2s ease;
+}
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.modal-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+  position: sticky;
+  top: 0;
+}
+.modal-title { font-family: var(--mono); font-size: 12px; font-weight: 600; word-break: break-all; }
+.modal-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.modal-close {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+.modal-body { padding: 16px 20px 20px; }
+.modal-section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.modal-data-grid { display: flex; flex-direction: column; gap: 6px; }
+.modal-data-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.modal-data-row:hover { background: var(--surface-2); }
+.modal-data-row .key { font-family: var(--mono); font-size: 10.5px; color: var(--muted); max-width: 45%; }
+.modal-data-row .val { font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: var(--text-2); text-align: right; word-break: break-all; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 6px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .summary { grid-template-columns: 1fr; }
+  .topbar { flex-wrap: wrap; }
+  .nav { width: 100%; order: 3; margin-left: 0; justify-content: center; }
+  .topbar-right { width: 100%; justify-content: space-between; }
+}
+@media (max-width: 680px) {
+  .topbar, .summary, .filters, .toolbar, #grid { padding-left: 16px; padding-right: 16px; }
+  .stat-pills { display: none; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search-wrap { max-width: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="12" rx="2"/>
+          <path d="M7 20h10M12 16v4"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Device Monitoring</h1>
+        <p>Real-time Machine &amp; Energy Tracking</p>
+      </div>
+      <nav class="nav">
+        <a href="#" class="active">Dashboard</a>
+        <a href="#">Analytics</a>
+        <a href="#">Logs</a>
+        <a href="#">Settings</a>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <div class="stat-pills">
+        <div class="stat-pill">
+          <span class="dot" style="background: var(--online)"></span>
+          <span id="count-online">0</span>
+          <span>online</span>
+        </div>
+        <div class="stat-pill">
+          <span class="dot" style="background: var(--offline)"></span>
+          <span id="count-offline">0</span>
+          <span>offline</span>
+        </div>
+        <div class="stat-pill">
+          <span class="dot" style="background: var(--muted-2)"></span>
+          <span id="count-total">0</span>
+          <span>total</span>
+        </div>
+      </div>
+      <div class="mqtt-chip">
+        <span class="mqtt-dot" id="mqtt-dot"></span>
+        <span id="mqtt-label">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="summary">
+    <div class="summary-card large">
+      <div class="summary-title">Fleet Intelligence</div>
+      <p class="summary-copy">
+        Real-time health monitoring across enterprise nodes.
+        <span id="summary-total">0</span> active sensors reporting via MQTT.
+      </p>
+      <div class="summary-actions">
+        <button class="btn primary" type="button">Provision Device</button>
+        <button class="btn ghost" type="button">Export Dataset</button>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">Live Nodes</div>
+      <div class="summary-metric">
+        <div class="metric-value" id="summary-live">0</div>
+        <div class="metric-sub"><span class="up" id="summary-stability">0%</span> Stability</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">Alert Status</div>
+      <div class="summary-metric">
+        <div class="metric-value" id="summary-alert">0</div>
+        <div class="metric-sub"><span class="down">Action Required</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="filters">
+    <div class="filter-group">
+      <div class="filter-label">Status</div>
+      <div class="pill-group" id="tab-status">
+        <button class="pill active" data-val="all" onclick="setStatusFilter('all')">
+          All <span class="pill-count" id="sc-all">0</span>
+        </button>
+        <button class="pill pill-online" data-val="online" onclick="setStatusFilter('online')">
+          <span class="dot"></span> Online <span class="pill-count" id="sc-online">0</span>
+        </button>
+        <button class="pill pill-offline" data-val="offline" onclick="setStatusFilter('offline')">
+          <span class="dot"></span> Offline <span class="pill-count" id="sc-offline">0</span>
+        </button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Category</div>
+      <div class="pill-group" id="tab-category">
+        <button class="pill active" data-val="all" onclick="setCategoryFilter('all')">
+          All <span class="pill-count" id="cc-all">0</span>
+        </button>
+        <button class="pill" data-val="facility" onclick="setCategoryFilter('facility')">
+          Facility <span class="pill-count" id="cc-facility">0</span>
+        </button>
+        <button class="pill" data-val="production" onclick="setCategoryFilter('production')">
+          Production <span class="pill-count" id="cc-production">0</span>
+        </button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Machine Type</div>
+      <div class="pill-group" id="tab-mtype">
+        <button class="pill active" data-val="all" onclick="setMtypeFilter('all')">
+          All <span class="pill-count" id="mc-all">0</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="search-input" placeholder="Search by Device ID..." oninput="render()">
+    </div>
+    <div class="toolbar-meta" id="toolbar-label">Waiting for data...</div>
+  </section>
+
+  <div id="grid"></div>
+</div>
+
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-device-id"></div>
+        <div class="modal-chips" id="modal-chips"></div>
+      </div>
+      <div class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Raw Payload</div>
+      <div class="modal-data-grid" id="modal-data-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const devices = {};
+let fStatus = "all";
+let fCategory = "all";
+let fMtype = "all";
+const grid = document.getElementById("grid");
+const mqttDot = document.getElementById("mqtt-dot");
+const mqttLabel = document.getElementById("mqtt-label");
+
+function parseDeviceId(id) {
+  if (!id || typeof id !== "string") return { category: "unknown", machineType: "unknown" };
+  const parts = id.split("_");
+  if (parts.length < 2) return { category: "unknown", machineType: "unknown" };
+
+  let category = parts[1].toLowerCase();
+  if (!["facility", "production"].includes(category)) {
+    for (let i = 1; i < parts.length; i++) {
+      const p = parts[i].toLowerCase();
+      if (p === "facility" || p === "production") {
+        category = p;
+        break;
+      }
+    }
+  }
+
+  let machineType = "unknown";
+  const lastPart = parts[parts.length - 1];
+  const isMac = /^[0-9A-Fa-f]{12}$/.test(lastPart);
+
+  if (isMac && parts.length >= 4) {
+    const mtypeParts = parts.slice(2, parts.length - 1);
+    machineType = mtypeParts.join("_").toLowerCase();
+  } else if (parts.length >= 3) {
+    const mtypeParts = parts.slice(2);
+    machineType = mtypeParts.join("_").toLowerCase();
+  } else if (parts.length === 2) {
+    machineType = "default";
+  }
+
+  return { category, machineType };
+}
+
+const client = mqtt.connect("ws://192.168.110.2:8083/mqtt", {
+  username: "devicemqtt",
+  password: "37X9AMn9",
+  reconnectPeriod: 3000,
+});
+client.on("connect", () => {
+  mqttDot.className = "mqtt-dot connected";
+  mqttLabel.textContent = "192.168.110.2:8083";
+  client.subscribe("event/status/#");
+});
+client.on("error", () => { mqttDot.className = "mqtt-dot error"; mqttLabel.textContent = "Connection error"; });
+client.on("offline", () => { mqttDot.className = "mqtt-dot"; mqttLabel.textContent = "Disconnected"; });
+client.on("reconnect", () => { mqttDot.className = "mqtt-dot"; mqttLabel.textContent = "Reconnecting..."; });
+client.on("message", (topic, message) => {
+  try {
+    const raw = JSON.parse(message.toString());
+    const data = normalizePayload(raw, topic);
+    data.updatedAt = new Date();
+    devices[data.deviceId] = data;
+    render();
+  } catch (e) { console.warn("Parse error:", e); }
+});
+
+function normalizePayload(raw, topic) {
+  const deviceId = raw.device_id || raw.client_id || "unknown";
+  const status = raw.status ||
+    (raw.event === "client.connected" ? "online" :
+     raw.event === "client.disconnected" ? "offline" : "unknown");
+  const { category, machineType } = parseDeviceId(deviceId);
+  return { deviceId, status, category, machineType, rawData: raw };
+}
+
+function setStatusFilter(v) {
+  fStatus = v;
+  document.querySelectorAll("#tab-status .pill").forEach(b =>
+    b.classList.toggle("active", b.dataset.val === v)
+  );
+  render();
+}
+function setCategoryFilter(v) {
+  fCategory = v;
+  fMtype = "all";
+  document.querySelectorAll("#tab-category .pill").forEach(b =>
+    b.classList.toggle("active", b.dataset.val === v)
+  );
+  render();
+}
+function setMtypeFilter(v) {
+  fMtype = v;
+  document.querySelectorAll("#tab-mtype .pill").forEach(b =>
+    b.classList.toggle("active", b.dataset.val === v)
+  );
+  render();
+}
+
+const MAX_ROWS = 5;
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function statusClass(s) {
+  return s === "online" ? "status-online" : s === "offline" ? "status-offline" : "status-unknown";
+}
+function statusLabel(s) {
+  return s === "online" ? "Online" : s === "offline" ? "Offline" : "Unknown";
+}
+function categoryChipClass(c) {
+  if (c === "facility") return "meta-chip category-facility";
+  if (c === "production") return "meta-chip category-production";
+  return "meta-chip category-unknown";
+}
+function buildDataRowsHTML(d) {
+  const entries = Object.entries(d.rawData);
+  const visible = entries.slice(0, MAX_ROWS);
+  const hidden = entries.length - MAX_ROWS;
+  let html = visible.map(([k, v]) => {
+    const isNull = v === null || v === undefined || v === "";
+    const valCls = isNull ? "data-val val-null" : typeof v === "number" ? "data-val highlight" : "data-val";
+    const display = isNull ? "-" : String(v).substring(0, 60);
+    return `<div class="data-row">
+      <span class="data-key">${esc(k)}</span>
+      <span class="${valCls}">${esc(display)}</span>
+    </div>`;
+  }).join("");
+  if (hidden > 0) {
+    html += `<div class="data-more" onclick="event.stopPropagation();openModal('${esc(d.deviceId)}')">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+      </svg>
+      +${hidden} more fields
+    </div>`;
+  }
+  return html;
+}
+
+function render() {
+  const q = (document.getElementById("search-input").value || "").toLowerCase().trim();
+  const all = Object.values(devices);
+  const onlineCnt = all.filter(d => d.status === "online").length;
+  const offlineCnt = all.filter(d => d.status === "offline").length;
+  const facilityCnt = all.filter(d => d.category === "facility").length;
+  const productionCnt = all.filter(d => d.category === "production").length;
+
+  document.getElementById("count-online").textContent = onlineCnt;
+  document.getElementById("count-offline").textContent = offlineCnt;
+  document.getElementById("count-total").textContent = all.length;
+  document.getElementById("summary-total").textContent = all.length;
+  document.getElementById("summary-live").textContent = onlineCnt;
+  document.getElementById("summary-alert").textContent = offlineCnt;
+
+  const stability = all.length ? Math.round((onlineCnt / all.length) * 100) : 0;
+  document.getElementById("summary-stability").textContent = `${stability}%`;
+
+  document.getElementById("sc-all").textContent = all.length;
+  document.getElementById("sc-online").textContent = onlineCnt;
+  document.getElementById("sc-offline").textContent = offlineCnt;
+  document.getElementById("cc-all").textContent = all.length;
+  document.getElementById("cc-facility").textContent = facilityCnt;
+  document.getElementById("cc-production").textContent = productionCnt;
+
+  const categoryScoped = fCategory === "all" ? all : all.filter(d => d.category === fCategory);
+  const mtypeCounts = {};
+  categoryScoped.forEach(d => {
+    if (!d.machineType || d.machineType === "unknown") return;
+    mtypeCounts[d.machineType] = (mtypeCounts[d.machineType] || 0) + 1;
+  });
+  const mtypes = Object.keys(mtypeCounts).sort();
+  const tabMtype = document.getElementById("tab-mtype");
+  const existingMtypes = [...tabMtype.querySelectorAll(".pill[data-mtype]")].map(b => b.dataset.val);
+  const mtypesChanged = JSON.stringify(existingMtypes.sort()) !== JSON.stringify([...mtypes].sort());
+  if (mtypesChanged) {
+    tabMtype.querySelectorAll(".pill[data-mtype]").forEach(b => b.remove());
+    mtypes.forEach(mt => {
+      const btn = document.createElement("button");
+      btn.className = "pill";
+      btn.dataset.val = mt;
+      btn.dataset.mtype = "1";
+      btn.innerHTML = `${esc(mt.replace(/_/g, " "))} <span class="pill-count" id="mc-${esc(mt)}">0</span>`;
+      btn.onclick = () => setMtypeFilter(mt);
+      tabMtype.appendChild(btn);
+    });
+    if (fMtype !== "all" && !mtypes.includes(fMtype)) {
+      fMtype = "all";
+    }
+    tabMtype.querySelectorAll(".pill").forEach(b =>
+      b.classList.toggle("active", b.dataset.val === fMtype)
+    );
+  }
+  const allForMtype = fCategory === "all" ? all : all.filter(d => d.category === fCategory);
+  document.getElementById("mc-all").textContent = allForMtype.length;
+  mtypes.forEach(mt => {
+    const el = document.getElementById("mc-" + mt);
+    if (el) el.textContent = allForMtype.filter(d => d.machineType === mt).length;
+  });
+
+  const filtered = all.filter(d => {
+    if (fStatus !== "all" && d.status !== fStatus) return false;
+    if (fCategory !== "all" && d.category !== fCategory) return false;
+    if (fMtype !== "all" && d.machineType !== fMtype) return false;
+    if (q && !d.deviceId.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const toolbarLabel = document.getElementById("toolbar-label");
+  if (!all.length) {
+    toolbarLabel.textContent = "Waiting for data...";
+  } else {
+    toolbarLabel.textContent = `Showing ${filtered.length} of ${all.length} devices`;
+  }
+
+  const visibleIds = new Set(filtered.map(d => d.deviceId));
+  grid.querySelectorAll(".device-card").forEach(el => {
+    if (!visibleIds.has(el.dataset.deviceId)) el.remove();
+  });
+
+  const existingEmpty = grid.querySelector(".empty-state");
+  if (!filtered.length) {
+    if (!existingEmpty) {
+      const em = document.createElement("div");
+      em.className = "empty-state";
+      em.innerHTML = `
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>
+          </svg>
+        </div>
+        <h3>${all.length === 0 ? "Waiting for MQTT data" : "No devices found"}</h3>
+        <p>${all.length === 0
+          ? "The dashboard will automatically update when data is received from the MQTT broker."
+          : "Try adjusting filters or search terms."}</p>`;
+      grid.appendChild(em);
+    }
+    return;
+  }
+  if (existingEmpty) existingEmpty.remove();
+
+  filtered.forEach(d => {
+    const sCls = statusClass(d.status);
+    const ts = d.updatedAt
+      ? d.updatedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      : "";
+    const existing = grid.querySelector(`.device-card[data-device-id="${CSS.escape(d.deviceId)}"]`);
+    if (existing) {
+      existing.classList.remove("status-online", "status-offline", "status-unknown");
+      existing.classList.add(sCls);
+      const badge = existing.querySelector(".status-badge");
+      if (badge) badge.innerHTML = `<span class="bdot"></span>${statusLabel(d.status)}`;
+      const dr = existing.querySelector(".data-rows");
+      if (dr) dr.innerHTML = buildDataRowsHTML(d);
+      const tsEl = existing.querySelector(".ts-val");
+      if (tsEl && ts) tsEl.textContent = ts;
+    } else {
+      const card = document.createElement("div");
+      card.className = `device-card ${sCls} is-new`;
+      card.dataset.deviceId = d.deviceId;
+      card.onclick = () => openModal(d.deviceId);
+      card.innerHTML = `
+        <div class="card-header">
+          <div class="device-id">${esc(d.deviceId)}</div>
+          <div class="status-badge"><span class="bdot"></span>${statusLabel(d.status)}</div>
+        </div>
+        <div class="card-meta">
+          <span class="${categoryChipClass(d.category)}">${esc(d.category)}</span>
+          <span class="meta-chip mtype">${esc(d.machineType.replace(/_/g, " "))}</span>
+        </div>
+        <div class="data-rows">${buildDataRowsHTML(d)}</div>
+        ${ts ? `<div class="card-footer">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="ts-val">${ts}</span>
+        </div>` : ""}`;
+      grid.appendChild(card);
+      card.addEventListener("animationend", () => card.classList.remove("is-new"), { once: true });
+    }
+  });
+}
+
+function openModal(deviceId) {
+  const d = devices[deviceId];
+  if (!d) return;
+  document.getElementById("modal-device-id").textContent = d.deviceId;
+  const statusStyle = d.status === "online"
+    ? "color:var(--online);background:#dcfce7;border:1px solid #bbf7d0"
+    : d.status === "offline"
+      ? "color:var(--offline);background:#fee2e2;border:1px solid #fecaca"
+      : "color:var(--neutral);background:#f3f4f6;border:1px solid #e5e7eb";
+  document.getElementById("modal-chips").innerHTML = `
+    <span class="${categoryChipClass(d.category)}">${esc(d.category)}</span>
+    <span class="meta-chip mtype">${esc(d.machineType.replace(/_/g, " "))}</span>
+    <span class="meta-chip" style="${statusStyle};font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;">
+      ${statusLabel(d.status)}
+    </span>`;
+  document.getElementById("modal-data-grid").innerHTML = Object.entries(d.rawData).map(([k, v]) => `
+    <div class="modal-data-row">
+      <span class="key">${esc(k)}</span>
+      <span class="val">${v === null || v === undefined ? "-" : esc(String(v))}</span>
+    </div>`).join("");
+  document.getElementById("modal-overlay").classList.add("open");
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById("modal-overlay")) return;
+  document.getElementById("modal-overlay").classList.remove("open");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+</script>
+</body>
+</html>

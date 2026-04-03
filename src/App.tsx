@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import mqtt from "mqtt";
+import { DashboardPage } from "./DashboardPage";
 
 type DeviceStatus = "online" | "offline" | "unknown";
 type DeviceCategory = "facility" | "production" | "unknown";
@@ -98,8 +99,8 @@ function normalizePayload(raw: RawData): DeviceInfo {
 }
 
 function parseHistoryEntry(raw: RawData): DeviceHistoryEntry | null {
-  const fmValue = raw.fm ?? raw.FM ?? raw.Fm ?? raw.fault_mode ?? raw.faultMode;
-  if (!fmValue) return null;
+  // Nếu không có lỗi (fm), lấy trạng thái hoặc loại sự kiện, hoặc mặc định là "Live Update"
+  const fmValue = raw.fm ?? raw.FM ?? raw.Fm ?? raw.fault_mode ?? raw.faultMode ?? raw.status ?? raw.event ?? "Live Update";
   const dateValue = raw.date ?? raw.timestamp ?? raw.ts ?? raw.time ?? raw.time_stamp;
   const dateString = dateValue ? String(dateValue) : new Date().toISOString();
   return {
@@ -140,6 +141,7 @@ const formatTime = (iso: string) =>
 
 function App() {
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({});
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [statusFilter, setStatusFilter] = useState<"all" | DeviceStatus>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | DeviceCategory>("all");
   const [machineFilter, setMachineFilter] = useState<string>("all");
@@ -147,6 +149,12 @@ function App() {
   const [connectionLabel, setConnectionLabel] = useState("Connecting...");
   const [connectionState, setConnectionState] = useState("idle");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Hàm điều hướng đơn giản
+  const navigateTo = (path: string) => {
+    window.history.pushState({}, "", path);
+    setCurrentPath(path);
+  };
 
   const handleCopy = (text: string, feedbackKey: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Ngăn việc mở modal
@@ -358,8 +366,25 @@ function App() {
           </div>
         </div>
 
+        <nav className="nav" style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '10px' }}>
+          <button 
+            className={`btn-nav ${currentPath === '/' ? 'active' : ''}`} 
+            onClick={() => navigateTo('/')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Devices
+          </button>
+          <button 
+            className={`btn-nav ${currentPath === '/dashboard' ? 'active' : ''}`} 
+            onClick={() => navigateTo('/dashboard')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            Analytics
+          </button>
+        </nav>
+
         <div className="topbar-center">
-          <div className="stat-pills">
+          <div className="stat-pills" style={{ opacity: currentPath === '/dashboard' ? 0.4 : 1 }}>
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--online)", width: "12px", height: "12px" }} />
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{onlineCount}</span>
@@ -386,9 +411,19 @@ function App() {
         </div>
       </header>
 
-      
-
-      <section className="filters compact-filters"  style={{
+      {currentPath === '/dashboard' ? (
+          <DashboardPage 
+            allDevices={allDevices} 
+            machineCounts={machineCounts} 
+            stats={{ 
+              online: onlineCount, 
+              offline: offlineCount, 
+              total: allDevices.length 
+            }} 
+          />
+      ) : (
+        <>
+          <section className="filters compact-filters"  style={{
     position: "sticky",
     top: '80px',
     zIndex: 1000
@@ -596,7 +631,7 @@ function App() {
         )}
       </div>
 
-      
+      </>)}
     </div>
   );
 }

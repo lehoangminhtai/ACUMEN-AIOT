@@ -146,15 +146,35 @@ function App() {
   const [search, setSearch] = useState("");
   const [connectionLabel, setConnectionLabel] = useState("Connecting...");
   const [connectionState, setConnectionState] = useState("idle");
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopy = (text: string, feedbackKey: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Ngăn việc mở modal
-    navigator.clipboard.writeText(text).then(() => {
+
+    const showFeedback = () => {
       setCopiedId(feedbackKey);
       setTimeout(() => setCopiedId(null), 1500);
-    });
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      // Use modern Clipboard API if available (Requires HTTPS)
+      navigator.clipboard.writeText(text).then(showFeedback).catch(err => {
+        console.error("Clipboard copy failed", err);
+      });
+    } else {
+      // Fallback for insecure contexts (HTTP) or older browsers
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        showFeedback();
+      } catch (err) {
+        console.error("Fallback copy failed", err);
+      }
+    }
   };
 
   const resetFilters = () => {
@@ -173,7 +193,7 @@ function App() {
 
     client.on("connect", () => {
       setConnectionState("connected");
-      setConnectionLabel(DEFAULT_BROKER);
+      setConnectionLabel("Online");
       client.subscribe("event/status/#");
     });
 
@@ -337,7 +357,8 @@ function App() {
             <p style={{ fontSize: "0.9rem", margin: 0, opacity: 0.8 }}>Real-time Machine & Utility Tracking</p>
           </div>
         </div>
-        <div className="topbar-right">
+
+        <div className="topbar-center">
           <div className="stat-pills">
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--online)", width: "12px", height: "12px" }} />
@@ -354,6 +375,13 @@ function App() {
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{allDevices.length}</span>
               <span style={{ fontSize: "0.9rem", textTransform: "uppercase", opacity: 0.8 }}>total</span>
             </div>
+          </div>
+        </div>
+
+        <div className="topbar-right">
+          <div className="mqtt-chip">
+            <span className={`mqtt-dot ${connectionState === "connected" ? "connected" : (connectionState === "error" || connectionState === "offline" ? "error" : "")}`} />
+            <span style={{ fontWeight: 600 }}>{connectionLabel}</span>
           </div>
         </div>
       </header>
@@ -472,7 +500,9 @@ function App() {
                 <th style={{textAlign:'center'}}>Machine Type</th>
                 {payloadKeys.length > 0 ? (
                   payloadKeys.map((key) => (
-                    <th key={key}>{key.toLowerCase() === "node_id" ? "Node ID / MAC" : key}</th>
+                    <th  key={key}
+                     style={key.toLowerCase() === "node_id" ? { position: 'relative', textAlign: 'center' } : {}}
+                    >{key.toLowerCase() === "node_id" ? "Node ID / MAC" : key}</th>
                   ))
                 ) : (
                   <th>Payload</th>
@@ -485,7 +515,7 @@ function App() {
                 <tr
                   key={device.deviceId}
                   className="device-row"
-                  onClick={() => setSelectedDeviceId(device.deviceId)}
+                  
                 >
                   <td 
                     className="device-id" 
@@ -493,7 +523,17 @@ function App() {
                     onClick={(e) => handleCopy(device.deviceId, device.deviceId, e)}
                     title="Click to copy ID"
                   >
-                    {device.deviceId}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {device.deviceId}
+                      <svg 
+                        width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" 
+                        style={{ marginLeft: '6px', opacity: 0.4, flexShrink: 0 }}
+                      >
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                    </span>
                     {copiedId === device.deviceId && <span className="copy-feedback">Copied!</span>}
                   </td>
                   <td style={{textAlign:'center'}}>
@@ -516,11 +556,25 @@ function App() {
                       return (
                         <td 
                           key={key} 
-                          className={isNodeId ? "device-id" : ""} 
-                          style={isNodeId ? { position: 'relative', textAlign: 'center' } : {}}
+                          className={isNodeId ? "device-id" : ""}
+                          style={isNodeId ? { position: 'relative', textAlign: 'center'} : {}}
                           onClick={isNodeId ? (e) => handleCopy(formatMacAddress(val), feedbackKey, e) : undefined}
                         >
-                          {isNodeId ? formatMacAddress(val) : formatValue(val)}
+                          {isNodeId ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              {formatMacAddress(val)}
+                              <svg 
+                                width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" 
+                                style={{ marginLeft: '6px', opacity: 0.4, flexShrink: 0 }}
+                              >
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </span>
+                          ) : (
+                            formatValue(val)
+                          )}
                           {isNodeId && copiedId === feedbackKey && <span className="copy-feedback">Copied!</span>}
                         </td>
                       );

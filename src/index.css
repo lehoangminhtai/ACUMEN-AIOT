@@ -55,6 +55,15 @@ button {
   gap: 16px;
 }
 .brand {
+  flex: 1;
+}
+.topbar-center {
+  flex: 0 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.brand {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -112,6 +121,8 @@ button {
 }
 .topbar-right {
   display: flex;
+  flex: 1;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
 }
@@ -535,7 +546,7 @@ button {
 }
 .device-table th {
   font-size: 15px;
-  color: var(--muted);
+  color: var(--text);
   text-transform: capitalize;
   letter-spacing: 0.08em;
 }
@@ -555,10 +566,17 @@ button {
   color: var(--text);
   word-break: break-all;
     cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s;
 }
 .device-id:hover {
   color: var(--primary);
+  background: rgba(37, 99, 235, 0.04);
+}
+.device-id svg {
+  transition: opacity 0.2s;
+}
+.device-id:hover svg {
+  opacity: 1 !important;
 }
 .copy-feedback {
   position: absolute;

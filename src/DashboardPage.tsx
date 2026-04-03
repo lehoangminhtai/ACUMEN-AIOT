@@ -83,8 +83,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ allDevices, machin
   const formatDuration = (ms: number) => {
     if (ms < 1000) return "just now";
     const minutes = Math.floor(ms / 60_000);
-    if (minutes < 1) return "< 1m";
-    if (minutes < 60) return `${minutes}m`;
+    if (minutes < 1) return "< 1 minute";
+    if (minutes < 60) return `${minutes} minutes`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
@@ -278,7 +278,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ allDevices, machin
       {/* Summary Cards */}
       <div className="dashboard-grid">
         <div className="db-card">
-          <div style={{ color: "var(--muted)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>System Availability</div>
+          <div style={{ color: "var(--text)", fontSize: "16px", fontWeight: 700, textTransform: "capitalize" }}>System Availability</div>
           <div style={{ fontSize: "32px", fontWeight: 800, color: "var(--online)", marginTop: "8px" }}>
             {stats.total > 0 ? Math.round((stats.online / stats.total) * 100) : 0}%
           </div>
@@ -287,23 +287,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ allDevices, machin
           </div>
         </div>
         <div className="db-card">
-          <div style={{ color: "var(--muted)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>Stale devices (&gt;30m)</div>
+          <div style={{ color: "var(--text)", fontSize: "16px", fontWeight: 700, textTransform: "capitalize" }}>Stale devices (&gt;30m)</div>
           <div style={{ fontSize: "32px", fontWeight: 800, marginTop: "8px", color: staleCount > 0 ? "var(--offline)" : "var(--text)" }}>{staleCount}</div>
           <div style={{ fontSize: "13px", color: "var(--muted-2)", marginTop: "4px" }}>No update received over 30 minutes</div>
         </div>
         <div className="db-card">
-          <div style={{ color: "var(--muted)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>Longest offline</div>
+          <div style={{ color: "var(--text)", fontSize: "16px", fontWeight: 700, textTransform: "capitalize" }}>Longest offline</div>
           <div style={{ fontSize: "32px", fontWeight: 800, color: stats.offline > 0 ? "var(--offline)" : "var(--text)", marginTop: "8px" }}>
             {longestOfflineMs === 0 ? "—" : formatDuration(longestOfflineMs)}
           </div>
-          <div style={{ fontSize: "13px", color: "var(--muted-2)", marginTop: "4px" }}>Based on device updatedAt</div>
+          <div style={{ fontSize: "13px", color: "var(--muted-2)", marginTop: "4px" }}>The longest time of device was offline</div>
         </div>
         <div className="db-card">
-          <div style={{ color: "var(--muted)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>DB long-term offline (&gt;1h)</div>
+          <div style={{ color: "var(--text)", fontSize: "16px", fontWeight: 700, textTransform: "capitalize" }}>DB long-term offline (&gt;1h)</div>
           <div style={{ fontSize: "32px", fontWeight: 800, color: dbOffline.length > 0 ? "var(--offline)" : "var(--text)", marginTop: "8px" }}>
             {dbOffline.length}
           </div>
-          <div style={{ fontSize: "13px", color: "var(--muted-2)", marginTop: "4px" }}>Fetched from device_status_dashboard.php</div>
+          <div style={{ fontSize: "13px", color: "var(--muted-2)", marginTop: "4px" }}>Fetched from database</div>
         </div>
       </div>
 

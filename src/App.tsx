@@ -366,7 +366,7 @@ function App() {
         </div>
 
         <div className="topbar-center">
-          <div className="stat-pills" style={{ opacity: currentPath === '/web_develop/monitor_device/dashboard' ? 0.4 : 1 }}>
+          <div className="stat-pills" >
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--online)", width: "12px", height: "12px" }} />
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{onlineCount}</span>

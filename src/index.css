@@ -156,7 +156,7 @@ button {
   border: 1px solid var(--border);
   background: #fff;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 13px; /* Tăng từ 11px lên 13px */
 }
 .mqtt-dot {
   width: 8px;
@@ -542,10 +542,11 @@ button {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   text-align: left;
+  font-size: 16px; /* Tăng cỡ chữ cho các ô dữ liệu trong bảng */
   vertical-align: middle;
 }
 .device-table th {
-  font-size: 15px;
+  font-size: 18px;
   color: var(--text);
   text-transform: capitalize;
   letter-spacing: 0.08em;
@@ -670,8 +671,8 @@ button {
 }
 .meta-chip {
   font-family: var(--mono);
-  font-size: 11px;
-  padding: 2px 6px;
+  font-size: 14px;
+  padding: 2px 2px;
   border-radius: 4px;
   font-weight: 600;
   text-transform: uppercase;

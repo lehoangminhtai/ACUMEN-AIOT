@@ -363,17 +363,17 @@ function App() {
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--online)", width: "12px", height: "12px" }} />
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{onlineCount}</span>
-              <span style={{ fontSize: "0.9rem", textTransform: "uppercase", opacity: 0.8 }}>online</span>
+              <span style={{ fontSize: "1.5rem", textTransform: "capitalize" }}>online</span>
             </div>
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--offline)", width: "12px", height: "12px" }} />
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{offlineCount}</span>
-              <span style={{ fontSize: "0.9rem", textTransform: "uppercase", opacity: 0.8 }}>offline</span>
+              <span style={{ fontSize: "1.5rem", textTransform: "capitalize" }}>offline</span>
             </div>
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--muted-2)", width: "12px", height: "12px" }} />
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{allDevices.length}</span>
-              <span style={{ fontSize: "0.9rem", textTransform: "uppercase", opacity: 0.8 }}>total</span>
+              <span style={{ fontSize: "1.5rem", textTransform: "capitalize" }}>total</span>
             </div>
           </div>
         </div>
@@ -502,7 +502,13 @@ function App() {
                   payloadKeys.map((key) => (
                     <th  key={key}
                      style={key.toLowerCase() === "node_id" ? { position: 'relative', textAlign: 'center' } : {}}
-                    >{key.toLowerCase() === "node_id" ? "Node ID / MAC" : key}</th>
+                    >
+                      {key.toLowerCase() === "node_id" 
+                        ? "Node ID / MAC" 
+                        : key.toLowerCase() === "fw" 
+                          ? "Firmware" 
+                          : key}
+                    </th>
                   ))
                 ) : (
                   <th>Payload</th>

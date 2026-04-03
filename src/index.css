@@ -416,10 +416,10 @@ button {
 }
 .filter-label {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--muted-2);
+  text-transform: capitalize;
+  color: var(--text-2);
   min-width: 90px;
 }
 .pill-group {
@@ -520,9 +520,9 @@ button {
 }
 .toolbar-meta {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted);
-  text-transform: uppercase;
+
   letter-spacing: 0.8px;
 }
 .table-wrap {
@@ -671,11 +671,11 @@ button {
 }
 .meta-chip {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 16px;
   padding: 2px 2px;
   border-radius: 4px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.3px;
 }
 .category-facility {

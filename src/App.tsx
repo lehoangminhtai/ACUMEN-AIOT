@@ -152,7 +152,6 @@ function App() {
 
   // Hàm điều hướng đơn giản
   const navigateTo = (path: string) => {
-    window.history.pushState({}, "", path);
     setCurrentPath(path);
   };
 
@@ -366,25 +365,8 @@ function App() {
           </div>
         </div>
 
-        <nav className="nav" style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '10px' }}>
-          <button 
-            className={`btn-nav ${currentPath === '/' ? 'active' : ''}`} 
-            onClick={() => navigateTo('/')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Devices
-          </button>
-          <button 
-            className={`btn-nav ${currentPath === '/dashboard' ? 'active' : ''}`} 
-            onClick={() => navigateTo('/dashboard')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-            Analytics
-          </button>
-        </nav>
-
         <div className="topbar-center">
-          <div className="stat-pills" style={{ opacity: currentPath === '/dashboard' ? 0.4 : 1 }}>
+          <div className="stat-pills" style={{ opacity: currentPath === '/web_develop/monitor_device/dashboard' ? 0.4 : 1 }}>
             <div className="stat-pill" style={{ padding: "10px 20px", borderRadius: "12px", gap: "10px" }}>
               <span className="dot" style={{ background: "var(--online)", width: "12px", height: "12px" }} />
               <span style={{ fontSize: "1.8rem", fontWeight: "bold", lineHeight: 1 }}>{onlineCount}</span>
@@ -404,6 +386,22 @@ function App() {
         </div>
 
         <div className="topbar-right">
+          <nav className="nav" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button 
+              className={`btn-nav ${currentPath === '/web_develop/monitor_device' ? 'active' : ''}`} 
+              onClick={() => navigateTo('/web_develop/monitor_device')}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              Devices
+            </button>
+            <button 
+              className={`btn-nav ${currentPath === '/web_develop/monitor_device/dashboard' ? 'active' : ''}`} 
+              onClick={() => navigateTo('/web_develop/monitor_device/dashboard')}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+              Analytics
+            </button>
+          </nav>
           <div className="mqtt-chip">
             <span className={`mqtt-dot ${connectionState === "connected" ? "connected" : (connectionState === "error" || connectionState === "offline" ? "error" : "")}`} />
             <span style={{ fontWeight: 600 }}>{connectionLabel}</span>
@@ -411,7 +409,7 @@ function App() {
         </div>
       </header>
 
-      {currentPath === '/dashboard' ? (
+      {currentPath === '/web_develop/monitor_device/dashboard' ? (
           <DashboardPage 
             allDevices={allDevices} 
             machineCounts={machineCounts} 
